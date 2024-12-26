@@ -1,2 +1,2 @@
 # livecoder
-Aspiration: hardware controller for live coding
+Aspiration: AI-powered hardware controller for live coding
