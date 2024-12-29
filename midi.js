@@ -1,22 +1,3 @@
-midiMessageType = function(firstByte) {
-    const messageType = firstByte & 0xF0;
-    switch (messageType) {
-      case 0x80:
-        return 'NOTE_OFF';
-      case 0x90:
-        return 'NOTE_ON';
-      case 0xB0:
-        return 'CC_CHANGE';
-      case 0xC0:
-        return 'P_CHANGE';
-      case 0xE0:
-        return 'PITCH_BEND';
-      default:
-        return 'OTHER';
-    }
-  }
-
-
 /* ------------ MIDI Class ------------ */
 
 class MIDI {
@@ -81,4 +62,23 @@ class MIDI {
       }
     }
   }
+
+  static messageType(firstByte) {
+    const messageType = firstByte & 0xF0;
+    switch (messageType) {
+      case 0x80:
+        return 'NOTE_OFF';
+      case 0x90:
+        return 'NOTE_ON';
+      case 0xB0:
+        return 'CC_CHANGE';
+      case 0xC0:
+        return 'P_CHANGE';
+      case 0xE0:
+        return 'PITCH_BEND';
+      default:
+        return 'OTHER';
+    }
+  }
+
 }

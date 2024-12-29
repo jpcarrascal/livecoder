@@ -5,7 +5,7 @@ setTimeout(() => {
 }, 3000);
 
 var cursorState = "codeEdit"; // possible states: codeEdit, functionSelect
-var parameters = [];
+var currentParameters = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Live Coder script loaded');
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function midiHandler (midiMessage) {
     const data = midiMessage.data;
-    const type = midiMessageType(data[0]);
+    const type = MIDI.messageType(data[0]);
     const dropdown = document.getElementById('functionDropdown');
     const codeArea = document.getElementById('code');
     if(type == 'NOTE_ON') {
@@ -59,12 +59,27 @@ function midiHandler (midiMessage) {
             } else if(data[1] == 9) {
                 dropdown.selectedIndex = dropdown.selectedIndex + 1;
             }
-        }
-        // pot CCs: 4, 3, 5, 6
-        if(data[1] == 4) {
-        } else if(data[1] == 3) {
-        } else if(data[1] == 5) {
-        } else if(data[1] == 6) {
+        } else if(cursorState == "parameterEdit") {
+            // pot CCs: 4, 3, 5, 6
+            // Mapping should be changed when switching to encoders:
+            let mappedValue = map(data[2], currentParameters[0].min, currentParameters[0].max);
+            if(data[1] == 4) {
+                if(currentParameters[0] !== undefined && currentParameters[0].type != "string") {
+                    currentParameters[0].value = mappedValue;
+                }
+            } else if(data[1] == 3) {
+                if(currentParameters[1] !== undefined && currentParameters[1].type != "string") {
+                    currentParameters[1].value = mappedValue;
+                }
+            } else if(data[1] == 5) {
+                if(currentParameters[2] !== undefined && currentParameters[2].type != "string") {
+                    currentParameters[2].value = mappedValue;
+                }
+            } else if(data[1] == 6) {
+                if(currentParameters[3] !== undefined && currentParameters[3].type != "string") {
+                    currentParameters[3].value = mappedValue;
+                }
+            }
         }
     }
 }
@@ -116,8 +131,8 @@ function showDropdown() {
     dropdown.addEventListener('change', () => {
         codeArea.focus();
         const selectedFunction = dropdown.options[dropdown.selectedIndex].text;
-        parameters = hydraFunctions[dropdown.selectedIndex].params;
-        console.log(paramParser(parameters));
+        currentParameters = paramParser(hydraFunctions[dropdown.selectedIndex].params);
+        console.log(currentParameters);
         const cursorPos = codeArea.selectionStart;
         const textBeforeCursor = codeArea.value.substring(0, cursorPos);
         const textAfterCursor = codeArea.value.substring(cursorPos);
@@ -154,10 +169,45 @@ function removeDropdown() {
 }
 
 function paramParser(params) {
-    let paramString = "";
+    let paramsWithType = [];
     for (let key in params) {
-        paramString += params[key] + ", ";
-        console.log(key, params[key], typeof params[key]);
+        let type = determineType(params[key]);
+        // Need to set better min and max values for floats and integers
+        let min = null;
+        let max = null;
+        if(type === 'integer') {
+            min = 0;
+            max = 100;
+        } else if(type === 'float') {
+            min = 0;
+            max = 1;
+        }
+        paramsWithType.push({name: key, value: params[key], type: type, min: min, max: max});
+        console.log(key, params[key], determineType(params[key]));
     }
-    return paramString;
+    return paramsWithType;
 }
+
+function determineType(value) {
+    if(value === null) {
+        return 'string';
+    }
+    if (typeof value === 'string') {
+        return 'string';
+    } else if (typeof value === 'number') {
+        if (Number.isInteger(value)) {
+            return 'integer';
+        } else {
+            return 'float';
+        }
+    } else {
+        return 'unknown';
+    }
+}
+
+// maps a value from range 0-127 to a new range:
+// https://stackoverflow.com/questions/5731863/mapping-a-numeric-range-onto-another
+function map(value, low, high) {
+    return low + (high - low) * (value) / 127;
+}
+
