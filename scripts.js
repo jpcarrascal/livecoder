@@ -1,7 +1,20 @@
+const midi = new MIDI();
+//midi.selectInput(1);
+setTimeout(() => {
+    midi.setInputHandler(3, midiHandler);
+}, 3000);
+
+var cursorState = "codeEdit"; // possible states: codeEdit, functionSelect
+var parameters = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Live Coder script loaded');
     const codeArea = document.getElementById('code');
     codeArea.value = localStorage.getItem('codeContent') || '';
+    
+    // Focus the textarea and set the cursor position to the beginning
+    codeArea.focus();
+    codeArea.setSelectionRange(0, 0);
 
     codeArea.addEventListener('input', () => {
         localStorage.setItem('codeContent', codeArea.value);
@@ -16,6 +29,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+function midiHandler (midiMessage) {
+    const data = midiMessage.data;
+    const type = midiMessageType(data[0]);
+    const dropdown = document.getElementById('functionDropdown');
+    const codeArea = document.getElementById('code');
+    if(type == 'NOTE_ON') {
+        if(data[1] == 98 && data[2] == 127) {
+            if(cursorState == "codeEdit") {
+                dropdown.focus();
+                cursorState = "functionList";
+            } else if(cursorState == "functionList") {
+                const event = new Event('change');
+                dropdown.dispatchEvent(event);
+                cursorState = "codeEdit";
+                codeArea.focus();
+            }
+        }
+    } else if(type == 'CC_CHANGE') {
+        if(cursorState == "codeEdit") {
+            if(data[1] == 8)
+                moveCursor("left");
+            else if(data[1] == 9)
+                moveCursor("right");
+        } else if(cursorState == "functionList") {
+            if(data[1] == 8) {
+                dropdown.selectedIndex = dropdown.selectedIndex - 1;
+            } else if(data[1] == 9) {
+                dropdown.selectedIndex = dropdown.selectedIndex + 1;
+            }
+        }
+        // pot CCs: 4, 3, 5, 6
+        if(data[1] == 4) {
+        } else if(data[1] == 3) {
+        } else if(data[1] == 5) {
+        } else if(data[1] == 6) {
+        }
+    }
+}
+
 
 function moveCursor(direction) {
     const codeArea = document.getElementById('code');
@@ -41,42 +94,50 @@ function moveCursor(direction) {
     }
 
     codeArea.setSelectionRange(newPos, newPos);
-    showDropdown(newPos);
+    showDropdown();
 }
 
-function showDropdown(cursorPos) {
+function showDropdown() {
     removeDropdown(); // Ensure any existing dropdown is removed
 
     const codeArea = document.getElementById('code');
     const dropdown = document.createElement('select');
     dropdown.id = 'functionDropdown';
-    allFunctions.forEach(func => {
+    dropdown.size = 5;
+
+    for (let i = 0; i < hydraFunctions.length; i++) {
+        const func = hydraFunctions[i];
         const option = document.createElement('option');
-        option.value = func;
-        option.text = func;
+        option.value = i;
+        option.text = func.name + "()";
         dropdown.appendChild(option);
+    }
+
+    dropdown.addEventListener('change', () => {
+        codeArea.focus();
+        const selectedFunction = dropdown.options[dropdown.selectedIndex].text;
+        parameters = hydraFunctions[dropdown.selectedIndex].params;
+        console.log(paramParser(parameters));
+        const cursorPos = codeArea.selectionStart;
+        const textBeforeCursor = codeArea.value.substring(0, cursorPos);
+        const textAfterCursor = codeArea.value.substring(cursorPos);
+        const newText = textBeforeCursor + "." + selectedFunction + textAfterCursor;
+
+        // Enable undo by using execCommand
+        const start = codeArea.selectionStart;
+        const end = codeArea.selectionEnd;
+        const lastChar = codeArea.value[end - 1];
+        let separator = ".";
+        if (lastChar === "(") separator = "";
+        document.execCommand('insertText', false, separator + selectedFunction);
+        codeArea.setSelectionRange(start + selectedFunction.length + 1, end + selectedFunction.length);
+
+        //removeDropdown();
     });
 
     const rect = codeArea.getBoundingClientRect();
-    let lineHeight = window.getComputedStyle(codeArea).lineHeight;
-
-    if (lineHeight === 'normal') {
-        const tempSpan = document.createElement('span');
-        tempSpan.style.font = window.getComputedStyle(codeArea).font;
-        tempSpan.style.visibility = 'hidden';
-        tempSpan.innerText = 'A';
-        document.body.appendChild(tempSpan);
-        lineHeight = tempSpan.offsetHeight;
-        document.body.removeChild(tempSpan);
-    } else {
-        lineHeight = parseInt(lineHeight);
-    }
-
-    const textBeforeCursor = codeArea.value.substring(0, cursorPos);
-    const lines = textBeforeCursor.split('\n');
-    const currentLine = lines[lines.length - 1];
-    const top = rect.top + window.scrollY + (lines.length - 1) * lineHeight;
-    const left = rect.left + window.scrollX + currentLine.length * 8; // Approximate character width
+    const top = rect.bottom + window.scrollY; // Position below the textarea
+    const left = rect.left + window.scrollX;
 
     dropdown.style.position = 'absolute';
     dropdown.style.left = `${left}px`;
@@ -92,12 +153,11 @@ function removeDropdown() {
     }
 }
 
-const allFunctions = ['noise()', 'voronoi()', 'osc()', 'shape()', 'gradient()', 'src()', 'solid()', 'prev()',
-    'rotate()', 'scale()', 'pixelate()', 'repeat()', 'repeatX()', 'repeatY()', 'kaleid()', 'scroll()', 'scrollX()', 'scrollY()',
-    'posterize()', 'shift()', 'invert()', 'contrast()', 'brightness()', 'luma()', 'thresh()', 'color()', 'saturate()', 'hue()', 'colorama()', 'sum()', 'r()', 'g()', 'b()', 'a()',
-    'add()', 'sub()', 'layer()', 'blend()', 'mult()', 'diff()', 'mask()',
-    'modulateRepeat()', 'modulateRepeatX()', 'modulateRepeatY()', 'modulateKaleid()', 'modulateScrollX()', 'modulateScrollY()', 'modulate()', 'modulateScale()', 'modulatePixelate()', 'modulateRotate()', 'modulateHue()',
-    'initCam()', 'initImage()', 'initVideo()', 'init()', 'initStream()', 'initScreen()',
-    'render()', 'update()', 'setResolution()', 'hush()', 'setFunction()', 'speed()', 'bpm()', 'width()', 'height()', 'time()', 'mouse()',
-    'fast()', 'smooth()', 'ease()', 'offset()', 'fit()', 'fft()',
-    'setSmooth()', 'setCutoff()', 'setBins()', 'setScale()', 'hide()', 'show()'];
+function paramParser(params) {
+    let paramString = "";
+    for (let key in params) {
+        paramString += params[key] + ", ";
+        console.log(key, params[key], typeof params[key]);
+    }
+    return paramString;
+}
