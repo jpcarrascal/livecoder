@@ -28,6 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
             removeDropdown();
         }
     });
+
+    codeArea.addEventListener('click', () => {
+        cursorState == "codeEdit";
+        removeDropdown();
+    });
 });
 
 function midiHandler (midiMessage) {
@@ -43,8 +48,11 @@ function midiHandler (midiMessage) {
             } else if(cursorState == "functionList") {
                 const event = new Event('change');
                 dropdown.dispatchEvent(event);
-                cursorState = "codeEdit";
+                cursorState = "parameterEdit";
+                removeDropdown();
                 codeArea.focus();
+            } else if(cursorState == "parameterEdit") {
+                cursorState = "codeEdit";
             }
         }
     } else if(type == 'CC_CHANGE') {
@@ -61,23 +69,13 @@ function midiHandler (midiMessage) {
             }
         } else if(cursorState == "parameterEdit") {
             // pot CCs: 4, 3, 5, 6
-            // Mapping should be changed when switching to encoders:
-            let mappedValue = map(data[2], currentParameters[0].min, currentParameters[0].max);
-            if(data[1] == 4) {
-                if(currentParameters[0] !== undefined && currentParameters[0].type != "string") {
-                    currentParameters[0].value = mappedValue;
-                }
-            } else if(data[1] == 3) {
-                if(currentParameters[1] !== undefined && currentParameters[1].type != "string") {
-                    currentParameters[1].value = mappedValue;
-                }
-            } else if(data[1] == 5) {
-                if(currentParameters[2] !== undefined && currentParameters[2].type != "string") {
-                    currentParameters[2].value = mappedValue;
-                }
-            } else if(data[1] == 6) {
-                if(currentParameters[3] !== undefined && currentParameters[3].type != "string") {
-                    currentParameters[3].value = mappedValue;
+            const pots = [4, 3, 5, 6, 666];
+            for(let i = 0; i < pots.length; i++) {
+                if(data[1] == pots[i]) {
+                    if(currentParameters[i] !== undefined && currentParameters[i].type != "string") {
+                        currentParameters[i].value = map2cc(data[2], currentParameters[i].min, currentParameters[i].max);
+                        console.log(currentParameters);
+                    }
                 }
             }
         }
@@ -207,7 +205,7 @@ function determineType(value) {
 
 // maps a value from range 0-127 to a new range:
 // https://stackoverflow.com/questions/5731863/mapping-a-numeric-range-onto-another
-function map(value, low, high) {
+function map2cc(value, low, high) {
     return low + (high - low) * (value) / 127;
 }
 
