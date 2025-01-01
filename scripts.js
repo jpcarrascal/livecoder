@@ -196,43 +196,6 @@ function removeDropdown() {
     }
 }
 
-function paramParser(params) {
-    let paramsWithType = [];
-    for (let key in params) {
-        let type = determineType(params[key]);
-        // Need to set better min and max values for floats and integers
-        let min = null;
-        let max = null;
-        if(type === 'integer') {
-            min = 0;
-            max = 100;
-        } else if(type === 'float') {
-            min = 0;
-            max = 1;
-        }
-        paramsWithType.push({name: key, value: params[key], type: type, min: min, max: max});
-        console.log(key, params[key], determineType(params[key]));
-    }
-    return paramsWithType;
-}
-
-function determineType(value) {
-    if(value === null) {
-        return 'string';
-    }
-    if (typeof value === 'string') {
-        return 'string';
-    } else if (typeof value === 'number') {
-        if (Number.isInteger(value)) {
-            return 'integer';
-        } else {
-            return 'float';
-        }
-    } else {
-        return 'unknown';
-    }
-}
-
 // maps a value from range 0-127 to a new range:
 // https://stackoverflow.com/questions/5731863/mapping-a-numeric-range-onto-another
 function map2cc(value, low, high) {
