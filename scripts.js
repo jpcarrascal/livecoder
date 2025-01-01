@@ -1,8 +1,27 @@
-const midi = new MIDI();
-//midi.selectInput(1);
-setTimeout(() => {
-    midi.setInputHandler(3, midiHandler);
-}, 3000);
+//const midi = new MIDI();
+
+//setTimeout(() => {
+//    midi.setInputHandler(3, midiHandler);
+//}, 3000);
+
+WebMidi
+.enable()
+.then(onEnabled)
+.catch(err => alert(err));
+
+function onEnabled() {
+    // Display available MIDI input devices
+    if (WebMidi.inputs.length < 1) {
+      document.body.innerHTML+= "No device detected.";
+    } else {
+      WebMidi.inputs.forEach((device, index) => {
+        if(device.name.includes("Transparent")) {
+            device.addListener('noteon', noteOnHandler);
+            device.addListener('controlchange', controllerHandler);
+        }
+      });
+    }
+}
 
 const dropdown = document.getElementById('functionDropdown');
 const codeArea = document.getElementById('code');
@@ -24,15 +43,16 @@ var globalObj = {
         return currentParameters;
     },
     set insert(value) {
-        codeToInsert = value;
+        insert = value;
     },
     get insert() {
-        return codeToInsert;
+        return insert;
     }
 };
 
 globalObj.cursorState = "codeEdit"; // possible states: codeEdit, functionSelect
 globalObj.currentParameters = [];
+globalObj.insert = "";
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Live Coder script loaded');
@@ -82,54 +102,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-function midiHandler (midiMessage) {
-    const data = midiMessage.data;
-    const type = MIDI.messageType(data[0]);
-    const dropdown = document.getElementById('functionDropdown');
-    if(type == 'NOTE_ON') {
-        if(data[1] == 98 && data[2] == 127) {
-            if(globalObj.cursorState == "codeEdit") {
-                showDropdown();
-                dropdown.focus();
-                globalObj.cursorState = "functionList";
-            } else if(globalObj.cursorState == "functionList") {
-                globalObj.cursorState = "parameterEdit";
-                const event = new Event('change');
-                dropdown.dispatchEvent(event);
-                hideDropdown();
-                codeArea.focus();
-            } else if(globalObj.cursorState == "parameterEdit") {
-                let vals = []
-                for(let i = 0; i < globalObj.currentParameters.length; i++) {
-                    vals.push(globalObj.currentParameters[i].value);
-                }
-                const valString = vals.join(", ");
-                insertTextAtCursor(codeArea, valString);
-                globalObj.cursorState = "codeEdit";
-            }
-        }
-    } else if(type == 'CC_CHANGE') {
+function noteOnHandler (e) {
+    const data = e.data;
+    if(data[1] == 98 && data[2] == 127) {
         if(globalObj.cursorState == "codeEdit") {
-            if(data[1] == 8)
-                moveCursor("left");
-            else if(data[1] == 9)
-                moveCursor("right");
+            showDropdown();
+            dropdown.focus();
+            globalObj.cursorState = "functionList";
         } else if(globalObj.cursorState == "functionList") {
-            if(data[1] == 8) {
-                dropdown.selectedIndex = dropdown.selectedIndex - 1;
-            } else if(data[1] == 9) {
-                dropdown.selectedIndex = dropdown.selectedIndex + 1;
-            }
+            globalObj.cursorState = "parameterEdit";
+            const event = new Event('change');
+            dropdown.dispatchEvent(event);
+            hideDropdown();
+            codeArea.focus();
         } else if(globalObj.cursorState == "parameterEdit") {
-            // pot CCs: 4, 3, 5, 6
-            const pots = [4, 3, 5, 6, 666];
-            for(let i = 0; i < pots.length; i++) {
-                if(data[1] == pots[i]) {
-                    if(globalObj.currentParameters[i] !== undefined && globalObj.currentParameters[i].type != "string") {
-                        globalObj.currentParameters[i].value = map2cc(data[2], globalObj.currentParameters[i].min, globalObj.currentParameters[i].max);
-                        globalObj.currentParameters = [...globalObj.currentParameters]; // Trigger setter
-                    }
+            let vals = []
+            for(let i = 0; i < globalObj.currentParameters.length; i++) {
+                vals.push(globalObj.currentParameters[i].value);
+            }
+            const valString = vals.join(", ");
+            insertTextAtCursor(codeArea, valString);
+            globalObj.cursorState = "codeEdit";
+        }
+    }
+}
+
+function controllerHandler (e) {
+    console.log(e);
+    const data = e.data;
+    if(globalObj.cursorState == "codeEdit") {
+        if(data[1] == 8)
+            moveCursor("left");
+        else if(data[1] == 9)
+            moveCursor("right");
+    } else if(globalObj.cursorState == "functionList") {
+        if(data[1] == 8) {
+            dropdown.selectedIndex = dropdown.selectedIndex - 1;
+        } else if(data[1] == 9) {
+            dropdown.selectedIndex = dropdown.selectedIndex + 1;
+        }
+    } else if(globalObj.cursorState == "parameterEdit") {
+        // pot CCs: 4, 3, 5, 6
+        const pots = [4, 3, 5, 6, 666];
+        for(let i = 0; i < pots.length; i++) {
+            if(data[1] == pots[i]) {
+                if(globalObj.currentParameters[i] !== undefined && globalObj.currentParameters[i].type != "string") {
+                    globalObj.currentParameters[i].value = map2cc(data[2], globalObj.currentParameters[i].min, globalObj.currentParameters[i].max);
+                    globalObj.currentParameters = [...globalObj.currentParameters]; // Trigger setter
                 }
             }
         }
@@ -183,7 +202,6 @@ function showDropdown() {
 }
 
 function hideDropdown() {
-    const dropdown = document.getElementById('functionDropdown');
     if (dropdown) {
         dropdown.style.display = 'none'; // Hide the dropdown
     }
