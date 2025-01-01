@@ -1,0 +1,49 @@
+
+<!--
+  From:
+  https://medium.com/@Mikepicker/unravel-reactivity-in-16-lines-of-vanilla-js-af13b185a733
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Unreact - Reactivity in VanillaJS</title>
+  </head>
+  <body>
+    <h1>Reactive Cat Facts</h1>
+    <p reactive='paragraph'>This will be filled with cat stories in 5 secs!</p>
+
+    <hr />
+
+    <p>This is a reactive item: <span reactive='text' /></p>
+    <p>Ant this too: <span reactive='text' /></p>
+    <input type="text" placeholder="Type something!" onkeyup="render('text', this.value)" />
+
+    <script>
+      const unreact = document.querySelectorAll.bind(document)
+ 
+      document.addEventListener('DOMContentLoaded', function () {
+        unreact('[reactive]').forEach(el => {
+          const key = el.attributes['reactive'].value
+          if (!window[key]) window[key] = { elements: [], proxy: null }
+          window[key].elements.push(el)
+          window[key].proxy = new Proxy({ value: el.innerText }, {
+            set(obj, prop, value) {
+              window[key].elements.forEach(el => el.innerHTML = value)
+              return true
+            }
+          })
+        })
+      });
+
+      window.render = (key, value) => window[key].proxy.value = value
+
+      // change element on API call
+      setInterval(() => {
+        fetch('https://catfact.ninja/fact')
+          .then(res => res.json())
+          .then(res => render('paragraph', res.fact))
+      }, 5000)
+
+    </script>
+  </body>
+</html>
