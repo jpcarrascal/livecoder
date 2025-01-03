@@ -128,7 +128,6 @@ function noteOnHandler (e) {
 }
 
 function controllerHandler (e) {
-    console.log(e);
     const data = e.data;
     if(globalObj.cursorState == "codeEdit") {
         if(data[1] == 8)
@@ -223,11 +222,13 @@ function map2cc(value, low, high) {
 
 function insertTextAtCursor(textArea, text) {
     const startPos = textArea.selectionStart;
-    const endPos = textArea.selectionEnd;
-    const textBeforeCursor = textArea.value.substring(0, startPos);
-    const textAfterCursor = textArea.value.substring(endPos);
+    //const endPos = textArea.selectionEnd;
+    //const textBeforeCursor = textArea.value.substring(0, startPos);
+    //const textAfterCursor = textArea.value.substring(endPos);
 
-    textArea.value = textBeforeCursor + text + textAfterCursor;
+    // Enable undo by using execCommand
+    textArea.focus();
+    document.execCommand('insertText', false, text);
 
     // Update cursor position
     const newCursorPos = startPos + text.length;
